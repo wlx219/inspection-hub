@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Canvas Data URL Test</title>
+</head>
+<body>
+  <h2>Test 1: 直接用 img 标签显示 data URL</h2>
+  <input type="file" id="fileInput" accept="image/*,.pdf">
+  <div id="result1" style="margin:10px 0; padding:10px; border:1px solid #ccc;"></div>
+  
+  <h2>Test 2: 用 canvas 绘制 data URL</h2>
+  <div id="result2" style="margin:10px 0; padding:10px; border:1px solid #ccc;"></div>
+
+  <h2>Test 3: 模拟 InspectionHub 的流程</h2>
+  <div id="result3" style="margin:10px 0; padding:10px; border:1px solid #ccc;">
+    <p>点击上面的文件选择器上传图片，然后：</p>
+    <button id="simulateBtn" disabled>模拟 "开始标注"</button>
+    <div id="simOutput"></div>
+  </div>
+
+  <script>
+    let storedDataUrl = null;
+
+    document.getElementById('fileInput').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        storedDataUrl = ev.target.result;
+        
+        // Test 1: img 标签
+        const r1 = document.getElementById('result1');
+        r1.innerHTML = `<p>File: ${file.name}, Size: ${file.size}, DataURL length: ${storedDataUrl.length}</p>`;
+        const img = document.createElement('img');
+        img.src = storedDataUrl;
+        img.style.maxWidth = '400px';
+        img.style.border = '1px solid #ddd';
+        img.onload = () => { r1.innerHTML += '<p style="color:green">✓ img loaded OK</p>'; };
+        img.onerror = () => { r1.innerHTML += '<p style="color:red">✗ img load FAILED</p>'; };
+        r1.appendChild(img);
+
+        // Test 2: canvas
+        const r2 = document.getElementById('result2');
+        const img2 = new Image();
+        img2.onload = () => {
+          r2.innerHTML = `<p>Image size: ${img2.width}x${img2.height}</p>`;
+          const canvas = document.createElement('canvas');
+          canvas.width = img2.width;
+          canvas.height = img2.height;
+          canvas.style.maxWidth = '400px';
+          canvas.style.border = '1px solid #ddd';
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img2, 0, 0);
+          r2.innerHTML += '<p style="color:green">✓ canvas drawn OK</p>';
+          r2.appendChild(canvas);
+        };
+        img2.onerror = () => {
+          r2.innerHTML = '<p style="color:red">✗ canvas Image load FAILED</p>';
+        };
+        img2.src = storedDataUrl;
+
+        document.getElementById('simulateBtn').disabled = false;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    document.getElementById('simulateBtn').addEventListener('click', () => {
+      if (!storedDataUrl) return;
+      const output = document.getElementById('simOutput');
+      output.innerHTML = '<p>Simulating annotation flow...</p>';
+      
+      // Simulate: store in "state", then render
+      const fakeState = {
+        workflowStep: 'annotate',
+        currentDrawing: {
+          filePath: storedDataUrl,
+          fileType: 'png',
+        }
+      };
+      output.innerHTML += `<p>State: workflowStep=${fakeState.workflowStep}, filePath length=${fakeState.currentDrawing.filePath.length}</p>`;
+      
+      // Try to render like SimpleCanvas
+      const img = new Image();
+      img.onload = () => {
+        output.innerHTML += `<p style="color:green">✓ Image loaded: ${img.width}x${img.height}</p>`;
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.style.maxWidth = '400px';
+        canvas.style.border = '2px solid blue';
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        output.innerHTML += '<p style="color:green">✓ Canvas drawn</p>';
+        output.appendChild(canvas);
+      };
+      img.onerror = (e) => {
+        output.innerHTML += `<p style="color:red">✗ Image load failed: ${e}</p>`;
+      };
+      img.src = fakeState.currentDrawing.filePath;
+    });
+  </script>
+</body>
+</html>
